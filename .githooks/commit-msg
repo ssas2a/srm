@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+commit_message_file="$1"
+commit_message=$(head -n 1 "$commit_message_file")
+
+pattern='^(fix|feature|config|feat|docs|refactor|test|build|ci|chore|perf|revert)(\([a-z0-9._/-]+\))?: [^[:space:]].{4,}$'
+
+if [[ ! "$commit_message" =~ $pattern ]]; then
+  cat >&2 <<'EOF'
+Commit rejeitado.
+
+Use o formato:
+  tipo: descricao
+  tipo(escopo): descricao
+
+Tipos permitidos:
+  fix, feature, config, feat, docs, refactor, test, build, ci, chore, perf, revert
+
+Exemplos:
+  fix: corrige arredondamento ABNT
+  feature: adiciona idempotencia por ativo
+  config: parametriza conexao do banco
+EOF
+  exit 1
+fi
