@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SRM Credit Engine - Gestão de Ativos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div class="brand">
+        <h1>SRM <span>Asset Engine</span></h1>
+        <p>Plataforma de Cessão de Crédito Multimoedas</p>
+      </div>
+
+      <!-- ENDPOINT: CAMBIO (GET) -->
+      <div class="exchange-card">
+        <span>CÂMBIO USD/BRL:</span>
+        <span id="usdRate" class="exchange-rate">R$ 5.3650</span>
+        <button id="btnFetchCambio" class="btn btn-secondary">Puxar Câmbio</button>
+      </div>
+    </header>
+
+    <!-- ENDPOINT: ATIVO (POST) - Formulário de Envio -->
+    <section class="card">
+      <h2>1. Submeter Novos Ativos para Avaliação (POST /ativo)</h2>
+      <form id="formNovoAtivo" class="form-grid">
+        <div class="form-group">
+          <label>TIPO DE ATIVO</label>
+          <select id="tipo" class="form-control">
+            <option value="DUPLICATA">Duplicata Mercantil</option>
+            <option value="CHEQUE">Cheque Pré-datado</option>
+            <option value="CONTRATO">Contrato de Serviço</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>CLIENTE</label>
+          <input type="text" id="cliente" class="form-control" value="cliente-demo" required>
+        </div>
+
+        <div class="form-group">
+          <label>VALOR FACE</label>
+          <input type="number" id="valorFace" class="form-control" value="25000" min="1" required>
+        </div>
+
+        <div class="form-group">
+          <label>MOEDA</label>
+          <select id="moeda" class="form-control">
+            <option value="BRL">BRL (R$)</option>
+            <option value="USD">USD ($)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>VENCIMENTO</label>
+          <input type="date" id="vencimento" class="form-control" value="2026-11-30" required>
+        </div>
+
+        <div class="form-group" style="display: flex; align-items: flex-end;">
+          <button type="submit" id="btnEnviarAvaliacao" class="btn btn-primary" style="width: 100%;">
+            + Enviar para Avaliação
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ENDPOINTS: ATIVO (GET & UPDATE) - Lista e Ações de Liquidação -->
+    <section class="card">
+      <div class="table-header-actions">
+        <h2>2. Ativos Avaliados & Liquidação (GET / PUT /ativo)</h2>
+        <div>
+          <button id="btnCarregarAtivos" class="btn btn-secondary">Atualizar Lista (GET)</button>
+          <button id="btnLiquidarSelecionados" class="btn btn-success" disabled>
+            Liquidar Selecionados (UPDATE)
+          </button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40px;">
+                <input type="checkbox" id="selectAllCheckbox" title="Habilitar/Desabilitar Todos">
+              </th>
+              <th>ID Ativo</th>
+              <th>Tipo</th>
+              <th>Moeda</th>
+              <th>Valor Face</th>
+              <th>Vencimento</th>
+              <th>Valor Presente (R$)</th>
+              <th>Valor Presente (US$)</th>
+              <th>Deságio</th>
+              <th>Cotação Dólar</th>
+              <th>Status</th>
+              <th>Ação Individual</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <div id="emptyMsg" class="empty-msg">Nenhum ativo disponível. Clique em "Atualizar Lista" ou submeta um novo ativo.</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

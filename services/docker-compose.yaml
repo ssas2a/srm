@@ -1,0 +1,52 @@
+version: '3.8'
+
+networks:
+  srm-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+
+services:
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: srm-postgres-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:?DB_USER deve ser informado}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD deve ser informado}
+      POSTGRES_DB: ${DB_NAME:?DB_NAME deve ser informado}
+    ports:
+      - "${DB_EXPOSED_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - srm-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  currency-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: srm-currency-service
+    restart: always
+    ports:
+      - "${SERVICE_EXPOSED_PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      DB_HOST: ${DB_HOST:-postgres-db}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER:?DB_USER deve ser informado}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD deve ser informado}
+      DB_NAME: ${DB_NAME:?DB_NAME deve ser informado}
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    networks:
+      - srm-network
+
