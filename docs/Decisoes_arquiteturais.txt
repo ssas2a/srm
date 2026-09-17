@@ -1,0 +1,114 @@
+
+
+DECISOES ARQUITETURAIS
+======================
+
+1. Contexto e escopo
+---------------------
+
+O projeto foi estruturado como uma aplicação para demonstração da avaliação e
+liquidação de recebíveis em BRL e USD. Seus requisitos mínimos de execução são:
+
+- Linux Debian;
+- Docker e Docker Compose.
+
+A implementação atual não inclui camadas próprias de firewall, load balancer,
+CDN ou cache.
+
+2. Componentes implementados
+-----------------------------
+
+O Docker Compose define dois serviços:
+
+- `currency-service`: backend em Node.js/TypeScript, responsável pela API de
+	ativos, precificação, conversão cambial e persistência das operações;
+- `postgres-db`: banco PostgreSQL responsável pelo armazenamento dos dados.
+
+O frontend é uma aplicação estática em HTML, CSS e JavaScript. Ele não é um
+serviço do Docker Compose e deve ser servido separadamente.
+
+Embora o domínio possua responsabilidades distintas, a implementação atual
+mantém o backend e o banco como os componentes executáveis da solução. O
+backend concentra a lógica de negócio e acessa o PostgreSQL por meio de uma
+rede Docker compartilhada.
+
+3. Banco de dados
+-----------------
+
+O PostgreSQL foi escolhido por sua maturidade, disponibilidade e adequação ao
+armazenamento relacional das operações financeiras. O banco é executado no
+contêiner `postgres:16-alpine` e utiliza o volume `pgdata` para persistência.
+
+As tabelas principais são:
+
+- `exchange_rates`: histórico das cotações cambiais;
+- `assets`: recebíveis, valores calculados, deságio, cotação utilizada e status;
+- `audit_events`: eventos de auditoria das operações do backend;
+- `asset_idempotency_keys`: chaves de idempotência por cliente e ativo.
+
+O schema inicial é definido em `services/init.sql`. O backend também verifica
+e complementa o schema na inicialização para suportar bancos já existentes.
+
+4. Precisão e regras financeiras
+---------------------------------
+
+Os cálculos financeiros do backend utilizam `bigint` e escalas inteiras:
+
+- valores monetários são armazenados em centavos;
+- cotações são armazenadas com quatro casas decimais.
+
+O arredondamento utiliza a regra de desempate para o par da ABNT NBR 5891.
+As conversões cambiais e o cálculo do valor presente passam pela mesma regra.
+
+O tipo do ativo seleciona a estratégia de precificação correspondente. As
+estratégias definem os spreads de duplicatas, cheques e contratos, enquanto a
+taxa base e o prazo participam do cálculo do valor presente.
+
+5. Integridade, auditoria e idempotência
+-----------------------------------------
+
+As alterações de ativos são executadas em transações PostgreSQL. A atualização
+de status utiliza bloqueio do registro (`FOR UPDATE`) para evitar conflitos
+concorrentes sobre o mesmo ativo.
+
+O backend registra eventos como criação de ativos, mudanças de status e
+reconciliação de valores. Os dados anterior e atual do evento são armazenados
+em campos `JSONB` na tabela `audit_events`.
+
+O cadastro de ativos é idempotente por item. A combinação `cliente` e
+`idempotencyKey` identifica uma operação já processada. Uma repetição com os
+mesmos dados retorna o ativo existente; a reutilização da chave com dados
+divergentes é rejeitada.
+
+6. Atualização da cotação
+-------------------------
+
+O backend oferece apenas leitura da cotação por meio de `GET /api/v1/cambio`.
+Não existe endpoint HTTP para alterar o valor do câmbio.
+
+A alteração operacional é feita pelo script `update_exchange_rate.sh`, que
+executa `psql` no contêiner do PostgreSQL. O script lê seus dados de conexão em
+`services/.env`, insere a nova cotação e registra o evento correspondente em
+`audit_events` na mesma transação.
+
+Essa separação reduz a superfície de escrita da API e mantém a alteração
+manual do câmbio em uma operação explícita de infraestrutura.
+
+7. Implantação e infraestrutura
+-------------------------------
+
+O Docker foi adotado para tornar a execução reproduzível e separar o backend
+do banco. As credenciais e os dados de conexão são fornecidos por variáveis de
+ambiente, e não ficam fixos no código da aplicação.
+
+Os scripts `run_all.sh`, `big_bang.sh` e `destroy_all.sh` automatizam,
+respectivamente, a recriação normal, a reconstrução destrutiva e a remoção
+dos recursos do projeto.
+
+8. Evoluções possíveis
+----------------------
+
+Kubernetes, réplica de leitura do PostgreSQL, CDN, cache, firewall e load
+balancer não fazem parte da implementação atual. Podem ser avaliados em uma
+implantação corporativa futura, conforme os requisitos de disponibilidade,
+escala, segurança e distribuição da aplicação.
